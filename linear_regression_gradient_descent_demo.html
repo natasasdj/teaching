@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Linear Regression Gradient Descent Demo</title>
+  <style>
+    :root{color:#0f172a;font-family:sans-serif}
+    body{margin:0;padding:16px;background:#f8fafc;line-height:1.45}
+    .controls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:14px}
+    label{display:grid;gap:4px;font-size:.85rem;font-weight:600;color:#334155}
+    input{width:100%;box-sizing:border-box}
+    input[type=number]{border:1px solid #cbd5e1;border-radius:4px;padding:7px;color:#0f172a;background:#fff}
+    button{border:1px solid #1d4ed8;border-radius:5px;background:#2563eb;color:#fff;padding:8px 12px;font-weight:600;cursor:pointer}
+    button.secondary{background:#fff;color:#1d4ed8}
+    .actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+    .metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:14px}
+    .metric{border:1px solid #dbe4ee;border-radius:5px;background:#fff;padding:8px;font-size:.82rem;color:#475569}
+    .metric strong{display:block;color:#0f172a;font-size:1rem}
+    svg{width:100%;height:auto;display:block;background:#fff;border:1px solid #cbd5e1;border-radius:6px}
+    .note{margin:12px 0 0;color:#475569;font-size:.85rem}
+    @media(max-width:580px){.controls{grid-template-columns:1fr}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  </style>
+</head>
+<body>
+  <div class="controls">
+    <label>Learning rate alpha<input id="alpha" type="number" min="0.001" max="1" step="0.01" value="0.10"></label>
+    <label>Starting slope w<input id="starting-w" type="number" step="0.1" value="0"></label>
+    <label>Starting intercept b<input id="starting-b" type="number" step="0.1" value="0"></label>
+  </div>
+  <div class="actions">
+    <button id="one-step" type="button">Run one step</button>
+    <button id="ten-steps" type="button">Run 10 steps</button>
+    <button id="reset" class="secondary" type="button">Reset</button>
+  </div>
+  <div class="metrics">
+    <div class="metric">Step<strong id="step">0</strong></div>
+    <div class="metric">Slope w<strong id="weight">0.000</strong></div>
+    <div class="metric">Intercept b<strong id="bias">0.000</strong></div>
+    <div class="metric">Mean squared error<strong id="cost">0.000</strong></div>
+  </div>
+  <svg viewBox="0 0 700 390" role="img" aria-label="House-price training data and the current linear regression line">
+    <rect width="700" height="390" fill="#ffffff"></rect>
+    <line x1="72" y1="322" x2="665" y2="322" stroke="#334155" stroke-width="2"></line>
+    <line x1="72" y1="25" x2="72" y2="322" stroke="#334155" stroke-width="2"></line>
+    <g id="grid" stroke="#e2e8f0" stroke-width="1"></g>
+    <g id="labels" fill="#475569" font-size="13"></g>
+    <text x="365" y="375" text-anchor="middle" fill="#334155" font-size="14">House size (thousands of square feet)</text>
+    <text x="18" y="180" text-anchor="middle" fill="#334155" font-size="14" transform="rotate(-90 18 180)">Price (hundreds of thousands of dollars)</text>
+    <path id="model-line" fill="none" stroke="#dc2626" stroke-width="4"></path>
+    <g id="points" fill="#2563eb"></g>
+  </svg>
+  <p class="note">Blue points are historical house sales. The red line is the current model: f(x) = wx + b.</p>
+  <script>
+    const data = [[1.0,1.3],[1.3,1.7],[1.7,2.1],[2.0,2.4],[2.3,2.9],[2.7,3.2],[3.0,3.8]];
+    const chart = {left:72,right:665,top:25,bottom:322,xMin:0.8,xMax:3.2,yMin:0.8,yMax:4.2};
+    let weight = 0;
+    let bias = 0;
+    let step = 0;
+    const xPixel = value => chart.left + (value-chart.xMin)/(chart.xMax-chart.xMin)*(chart.right-chart.left);
+    const yPixel = value => chart.bottom - (value-chart.yMin)/(chart.yMax-chart.yMin)*(chart.bottom-chart.top);
+    function meanSquaredError(){return data.reduce((sum,[x,y])=>sum+(weight*x+bias-y)**2,0)/data.length}
+    function drawAxes(){
+      const grid=document.querySelector('#grid'); const labels=document.querySelector('#labels');
+      grid.innerHTML=''; labels.innerHTML='';
+      for(let value=1;value<=3;value+=1){grid.innerHTML+=`<line x1="${xPixel(value)}" y1="${chart.top}" x2="${xPixel(value)}" y2="${chart.bottom}"></line>`;labels.innerHTML+=`<text x="${xPixel(value)}" y="345" text-anchor="middle">${value}</text>`}
+      for(let value=1;value<=4;value+=1){grid.innerHTML+=`<line x1="${chart.left}" y1="${yPixel(value)}" x2="${chart.right}" y2="${yPixel(value)}"></line>`;labels.innerHTML+=`<text x="58" y="${yPixel(value)+4}" text-anchor="end">${value}</text>`}
+      document.querySelector('#points').innerHTML=data.map(([x,y])=>`<circle cx="${xPixel(x)}" cy="${yPixel(y)}" r="6"></circle>`).join('');
+    }
+    function render(){
+      const y1=weight*chart.xMin+bias, y2=weight*chart.xMax+bias;
+      document.querySelector('#model-line').setAttribute('d',`M ${xPixel(chart.xMin)} ${yPixel(y1)} L ${xPixel(chart.xMax)} ${yPixel(y2)}`);
+      document.querySelector('#step').textContent=step;
+      document.querySelector('#weight').textContent=weight.toFixed(3);
+      document.querySelector('#bias').textContent=bias.toFixed(3);
+      document.querySelector('#cost').textContent=meanSquaredError().toFixed(3);
+    }
+    function descend(){
+      const alpha=Number(document.querySelector('#alpha').value);
+      if(!Number.isFinite(alpha)||alpha<=0)return;
+      const gradients=data.reduce(([dw,db],[x,y])=>{const error=weight*x+bias-y;return [dw+error*x,db+error]},[0,0]);
+      weight-=alpha*gradients[0]/data.length;
+      bias-=alpha*gradients[1]/data.length;
+      step+=1; render();
+    }
+    document.querySelector('#one-step').addEventListener('click',descend);
+    document.querySelector('#ten-steps').addEventListener('click',()=>{for(let i=0;i<10;i+=1)descend()});
+    document.querySelector('#reset').addEventListener('click',()=>{weight=Number(document.querySelector('#starting-w').value)||0;bias=Number(document.querySelector('#starting-b').value)||0;step=0;render()});
+    drawAxes(); document.querySelector('#reset').click();
+  </script>
+</body>
+</html>
