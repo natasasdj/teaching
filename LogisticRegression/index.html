@@ -25,7 +25,8 @@
 <body>
   <div class="controls">
     <label>Learning rate alpha<input id="alpha" type="number" min="0.001" max="2" step="0.01" value="0.2"></label>
-    <label>Starting weight w<input id="starting-w" type="number" step="0.1" value="0"></label>
+    <label>Starting weight w1<input id="starting-w1" type="number" step="0.1" value="0"></label>
+    <label>Starting weight w2<input id="starting-w2" type="number" step="0.1" value="0"></label>
     <label>Starting intercept b<input id="starting-b" type="number" step="0.1" value="0"></label>
   </div>
   <div class="actions">
@@ -35,65 +36,67 @@
   </div>
   <div class="metrics">
     <div class="metric">Step<strong id="step">0</strong></div>
-    <div class="metric">Weight w<strong id="weight">0.000</strong></div>
+    <div class="metric">Weight w1<strong id="weight-1">0.000</strong></div>
+    <div class="metric">Weight w2<strong id="weight-2">0.000</strong></div>
     <div class="metric">Intercept b<strong id="bias">0.000</strong></div>
     <div class="metric">Log loss<strong id="cost">0.000</strong></div>
   </div>
-  <svg viewBox="0 0 700 410" role="img" aria-label="Logistic regression probability curve and binary classification training examples">
+  <svg viewBox="0 0 700 410" role="img" aria-label="Logistic regression decision boundary and binary classification training examples">
     <rect width="700" height="410" fill="#ffffff"></rect>
     <line x1="72" y1="340" x2="665" y2="340" stroke="#334155" stroke-width="2"></line>
     <line x1="72" y1="35" x2="72" y2="340" stroke="#334155" stroke-width="2"></line>
     <g id="grid" stroke="#e2e8f0" stroke-width="1"></g>
     <g id="labels" fill="#475569" font-size="13"></g>
-    <text x="365" y="390" text-anchor="middle" fill="#334155" font-size="14">Standardized feature x</text>
-    <text x="18" y="190" text-anchor="middle" fill="#334155" font-size="14" transform="rotate(-90 18 190)">Probability of class 1</text>
-    <path id="curve" fill="none" stroke="#dc2626" stroke-width="4"></path>
-    <line id="boundary" stroke="#1d4ed8" stroke-width="2" stroke-dasharray="7 5"></line>
+    <text x="365" y="390" text-anchor="middle" fill="#334155" font-size="14">Standardized feature x1</text>
+    <text x="18" y="190" text-anchor="middle" fill="#334155" font-size="14" transform="rotate(-90 18 190)">Standardized feature x2</text>
+    <line id="boundary" stroke="#dc2626" stroke-width="4"></line>
     <g id="points"></g>
     <text id="boundary-label" fill="#1d4ed8" font-size="12"></text>
   </svg>
-  <p class="note">Blue points are class 0 and orange points are class 1. The red curve is the current probability model, p(y = 1 | x) = sigmoid(wx + b). The dashed line marks the 0.5 decision threshold.</p>
+  <p class="note">Blue points are class 0 and orange points are class 1. The red line is the current 0.5 decision boundary: w1x1 + w2x2 + b = 0.</p>
   <script>
-    const data = [[-2.5,0],[-1.8,0],[-1.2,0],[-0.6,0],[0.2,1],[0.8,1],[1.5,1],[2.2,1]];
-    const chart = {left:72,right:665,top:35,bottom:340,xMin:-3,xMax:3};
-    let weight = 0;
+    const data = [[-2.4,-1.3,0],[-1.6,-2.1,0],[-1.1,-0.7,0],[-1.9,-0.3,0],[0.5,1.1,1],[1.2,0.4,1],[1.4,1.9,1],[0.3,2.0,1]];
+    const chart = {left:72,right:665,top:35,bottom:340,min:-3,max:3};
+    let weight1 = 0;
+    let weight2 = 0;
     let bias = 0;
     let step = 0;
-    const xPixel = value => chart.left + (value-chart.xMin)/(chart.xMax-chart.xMin)*(chart.right-chart.left);
-    const yPixel = value => chart.bottom - value*(chart.bottom-chart.top);
+    const xPixel = value => chart.left + (value-chart.min)/(chart.max-chart.min)*(chart.right-chart.left);
+    const yPixel = value => chart.bottom - (value-chart.min)/(chart.max-chart.min)*(chart.bottom-chart.top);
     const sigmoid = value => value >= 0 ? 1/(1+Math.exp(-value)) : Math.exp(value)/(1+Math.exp(value));
-    function logLoss(){return data.reduce((sum,[x,y])=>{const probability=Math.min(Math.max(sigmoid(weight*x+bias),1e-12),1-1e-12);return sum-(y*Math.log(probability)+(1-y)*Math.log(1-probability))},0)/data.length}
+    function logLoss(){return data.reduce((sum,[x1,x2,y])=>{const probability=Math.min(Math.max(sigmoid(weight1*x1+weight2*x2+bias),1e-12),1-1e-12);return sum-(y*Math.log(probability)+(1-y)*Math.log(1-probability))},0)/data.length}
     function drawAxes(){
       const grid=document.querySelector('#grid'); const labels=document.querySelector('#labels');
       grid.innerHTML=''; labels.innerHTML='';
-      for(let value=-3;value<=3;value+=1){grid.innerHTML+=`<line x1="${xPixel(value)}" y1="${chart.top}" x2="${xPixel(value)}" y2="${chart.bottom}"></line>`;labels.innerHTML+=`<text x="${xPixel(value)}" y="363" text-anchor="middle">${value}</text>`}
-      for(const value of [0,0.5,1]){grid.innerHTML+=`<line x1="${chart.left}" y1="${yPixel(value)}" x2="${chart.right}" y2="${yPixel(value)}"></line>`;labels.innerHTML+=`<text x="58" y="${yPixel(value)+4}" text-anchor="end">${value.toFixed(1)}</text>`}
-      document.querySelector('#points').innerHTML=data.map(([x,y])=>`<circle cx="${xPixel(x)}" cy="${yPixel(y)}" r="7" fill="${y ? '#f97316' : '#2563eb'}" stroke="#fff" stroke-width="2"></circle>`).join('');
+      for(let value=-3;value<=3;value+=1){grid.innerHTML+=`<line x1="${xPixel(value)}" y1="${chart.top}" x2="${xPixel(value)}" y2="${chart.bottom}"></line><line x1="${chart.left}" y1="${yPixel(value)}" x2="${chart.right}" y2="${yPixel(value)}"></line>`;labels.innerHTML+=`<text x="${xPixel(value)}" y="363" text-anchor="middle">${value}</text><text x="58" y="${yPixel(value)+4}" text-anchor="end">${value}</text>`}
+      document.querySelector('#points').innerHTML=data.map(([x1,x2,y])=>`<circle cx="${xPixel(x1)}" cy="${yPixel(x2)}" r="7" fill="${y ? '#f97316' : '#2563eb'}" stroke="#fff" stroke-width="2"></circle>`).join('');
     }
     function render(){
-      const curve=[];
-      for(let x=chart.xMin;x<=chart.xMax;x+=0.04)curve.push(`${x===chart.xMin?'M':'L'} ${xPixel(x)} ${yPixel(sigmoid(weight*x+bias))}`);
-      document.querySelector('#curve').setAttribute('d',curve.join(' '));
-      const threshold=Math.abs(weight)<1e-9 ? null : -bias/weight;
       const boundary=document.querySelector('#boundary'); const label=document.querySelector('#boundary-label');
-      if(threshold!==null && threshold>=chart.xMin && threshold<=chart.xMax){const px=xPixel(threshold);boundary.setAttribute('x1',px);boundary.setAttribute('x2',px);boundary.setAttribute('y1',chart.top);boundary.setAttribute('y2',chart.bottom);boundary.style.display='block';label.setAttribute('x',px+6);label.setAttribute('y',chart.top+16);label.textContent='p = 0.5'}else{boundary.style.display='none';label.textContent=''}
+      const intersections=[];
+      if(Math.abs(weight2)>1e-9){for(const x1 of [chart.min,chart.max]){const x2=-(weight1*x1+bias)/weight2;if(x2>=chart.min&&x2<=chart.max)intersections.push([x1,x2])}}
+      if(Math.abs(weight1)>1e-9){for(const x2 of [chart.min,chart.max]){const x1=-(weight2*x2+bias)/weight1;if(x1>=chart.min&&x1<=chart.max)intersections.push([x1,x2])}}
+      const unique=intersections.filter((point,index,array)=>index===array.findIndex(candidate=>Math.abs(candidate[0]-point[0])<1e-6&&Math.abs(candidate[1]-point[1])<1e-6));
+      if(unique.length>=2){boundary.setAttribute('x1',xPixel(unique[0][0]));boundary.setAttribute('y1',yPixel(unique[0][1]));boundary.setAttribute('x2',xPixel(unique[1][0]));boundary.setAttribute('y2',yPixel(unique[1][1]));boundary.style.display='block';label.setAttribute('x',xPixel(unique[0][0])+6);label.setAttribute('y',yPixel(unique[0][1])-8);label.textContent='p = 0.5'}else{boundary.style.display='none';label.textContent=''}
       document.querySelector('#step').textContent=step;
-      document.querySelector('#weight').textContent=weight.toFixed(3);
+      document.querySelector('#weight-1').textContent=weight1.toFixed(3);
+      document.querySelector('#weight-2').textContent=weight2.toFixed(3);
       document.querySelector('#bias').textContent=bias.toFixed(3);
       document.querySelector('#cost').textContent=logLoss().toFixed(3);
     }
     function descend(){
       const alpha=Number(document.querySelector('#alpha').value);
       if(!Number.isFinite(alpha)||alpha<=0)return;
-      const [gradientW,gradientB]=data.reduce(([dw,db],[x,y])=>{const error=sigmoid(weight*x+bias)-y;return [dw+error*x,db+error]},[0,0]);
-      weight-=alpha*gradientW/data.length;
+      const [gradientW1,gradientW2,gradientB]=data.reduce(([dw1,dw2,db],[x1,x2,y])=>{const error=sigmoid(weight1*x1+weight2*x2+bias)-y;return [dw1+error*x1,dw2+error*x2,db+error]},[0,0,0]);
+      weight1-=alpha*gradientW1/data.length;
+      weight2-=alpha*gradientW2/data.length;
       bias-=alpha*gradientB/data.length;
       step+=1;
       render();
     }
     document.querySelector('#one-step').addEventListener('click',descend);
     document.querySelector('#ten-steps').addEventListener('click',()=>{for(let index=0;index<10;index+=1)descend()});
-    document.querySelector('#reset').addEventListener('click',()=>{weight=Number(document.querySelector('#starting-w').value)||0;bias=Number(document.querySelector('#starting-b').value)||0;step=0;render()});
+    document.querySelector('#reset').addEventListener('click',()=>{weight1=Number(document.querySelector('#starting-w1').value)||0;weight2=Number(document.querySelector('#starting-w2').value)||0;bias=Number(document.querySelector('#starting-b').value)||0;step=0;render()});
     drawAxes();
     document.querySelector('#reset').click();
   </script>
