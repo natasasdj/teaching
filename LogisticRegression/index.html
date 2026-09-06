@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Logistic Regression Gradient Descent Demo</title>
+  <style>
+    :root{color:#0f172a;font-family:sans-serif}
+    body{margin:0;padding:16px;background:#f8fafc;line-height:1.45}
+    .controls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:14px}
+    label{display:grid;gap:4px;font-size:.85rem;font-weight:600;color:#334155}
+    input{width:100%;box-sizing:border-box}
+    input[type=number]{border:1px solid #cbd5e1;border-radius:4px;padding:7px;color:#0f172a;background:#fff}
+    button{border:1px solid #1d4ed8;border-radius:5px;background:#2563eb;color:#fff;padding:8px 12px;font-weight:600;cursor:pointer}
+    button.secondary{background:#fff;color:#1d4ed8}
+    .actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+    .metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:14px}
+    .metric{border:1px solid #dbe4ee;border-radius:5px;background:#fff;padding:8px;font-size:.82rem;color:#475569}
+    .metric strong{display:block;color:#0f172a;font-size:1rem}
+    svg{width:100%;height:auto;display:block;background:#fff;border:1px solid #cbd5e1;border-radius:6px}
+    .note{margin:12px 0 0;color:#475569;font-size:.85rem}
+    @media(max-width:580px){.controls{grid-template-columns:1fr}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  </style>
+</head>
+<body>
+  <div class="controls">
+    <label>Learning rate alpha<input id="alpha" type="number" min="0.001" max="2" step="0.01" value="0.2"></label>
+    <label>Starting weight w<input id="starting-w" type="number" step="0.1" value="0"></label>
+    <label>Starting intercept b<input id="starting-b" type="number" step="0.1" value="0"></label>
+  </div>
+  <div class="actions">
+    <button id="one-step" type="button">Run one step</button>
+    <button id="ten-steps" type="button">Run 10 steps</button>
+    <button id="reset" class="secondary" type="button">Reset</button>
+  </div>
+  <div class="metrics">
+    <div class="metric">Step<strong id="step">0</strong></div>
+    <div class="metric">Weight w<strong id="weight">0.000</strong></div>
+    <div class="metric">Intercept b<strong id="bias">0.000</strong></div>
+    <div class="metric">Log loss<strong id="cost">0.000</strong></div>
+  </div>
+  <svg viewBox="0 0 700 410" role="img" aria-label="Logistic regression probability curve and binary classification training examples">
+    <rect width="700" height="410" fill="#ffffff"></rect>
+    <line x1="72" y1="340" x2="665" y2="340" stroke="#334155" stroke-width="2"></line>
+    <line x1="72" y1="35" x2="72" y2="340" stroke="#334155" stroke-width="2"></line>
+    <g id="grid" stroke="#e2e8f0" stroke-width="1"></g>
+    <g id="labels" fill="#475569" font-size="13"></g>
+    <text x="365" y="390" text-anchor="middle" fill="#334155" font-size="14">Standardized feature x</text>
+    <text x="18" y="190" text-anchor="middle" fill="#334155" font-size="14" transform="rotate(-90 18 190)">Probability of class 1</text>
+    <path id="curve" fill="none" stroke="#dc2626" stroke-width="4"></path>
+    <line id="boundary" stroke="#1d4ed8" stroke-width="2" stroke-dasharray="7 5"></line>
+    <g id="points"></g>
+    <text id="boundary-label" fill="#1d4ed8" font-size="12"></text>
+  </svg>
+  <p class="note">Blue points are class 0 and orange points are class 1. The red curve is the current probability model, p(y = 1 | x) = sigmoid(wx + b). The dashed line marks the 0.5 decision threshold.</p>
+  <script>
+    const data = [[-2.5,0],[-1.8,0],[-1.2,0],[-0.6,0],[0.2,1],[0.8,1],[1.5,1],[2.2,1]];
+    const chart = {left:72,right:665,top:35,bottom:340,xMin:-3,xMax:3};
+    let weight = 0;
+    let bias = 0;
+    let step = 0;
+    const xPixel = value => chart.left + (value-chart.xMin)/(chart.xMax-chart.xMin)*(chart.right-chart.left);
+    const yPixel = value => chart.bottom - value*(chart.bottom-chart.top);
+    const sigmoid = value => value >= 0 ? 1/(1+Math.exp(-value)) : Math.exp(value)/(1+Math.exp(value));
+    function logLoss(){return data.reduce((sum,[x,y])=>{const probability=Math.min(Math.max(sigmoid(weight*x+bias),1e-12),1-1e-12);return sum-(y*Math.log(probability)+(1-y)*Math.log(1-probability))},0)/data.length}
+    function drawAxes(){
+      const grid=document.querySelector('#grid'); const labels=document.querySelector('#labels');
+      grid.innerHTML=''; labels.innerHTML='';
+      for(let value=-3;value<=3;value+=1){grid.innerHTML+=`<line x1="${xPixel(value)}" y1="${chart.top}" x2="${xPixel(value)}" y2="${chart.bottom}"></line>`;labels.innerHTML+=`<text x="${xPixel(value)}" y="363" text-anchor="middle">${value}</text>`}
+      for(const value of [0,0.5,1]){grid.innerHTML+=`<line x1="${chart.left}" y1="${yPixel(value)}" x2="${chart.right}" y2="${yPixel(value)}"></line>`;labels.innerHTML+=`<text x="58" y="${yPixel(value)+4}" text-anchor="end">${value.toFixed(1)}</text>`}
+      document.querySelector('#points').innerHTML=data.map(([x,y])=>`<circle cx="${xPixel(x)}" cy="${yPixel(y)}" r="7" fill="${y ? '#f97316' : '#2563eb'}" stroke="#fff" stroke-width="2"></circle>`).join('');
+    }
+    function render(){
+      const curve=[];
+      for(let x=chart.xMin;x<=chart.xMax;x+=0.04)curve.push(`${x===chart.xMin?'M':'L'} ${xPixel(x)} ${yPixel(sigmoid(weight*x+bias))}`);
+      document.querySelector('#curve').setAttribute('d',curve.join(' '));
+      const threshold=Math.abs(weight)<1e-9 ? null : -bias/weight;
+      const boundary=document.querySelector('#boundary'); const label=document.querySelector('#boundary-label');
+      if(threshold!==null && threshold>=chart.xMin && threshold<=chart.xMax){const px=xPixel(threshold);boundary.setAttribute('x1',px);boundary.setAttribute('x2',px);boundary.setAttribute('y1',chart.top);boundary.setAttribute('y2',chart.bottom);boundary.style.display='block';label.setAttribute('x',px+6);label.setAttribute('y',chart.top+16);label.textContent='p = 0.5'}else{boundary.style.display='none';label.textContent=''}
+      document.querySelector('#step').textContent=step;
+      document.querySelector('#weight').textContent=weight.toFixed(3);
+      document.querySelector('#bias').textContent=bias.toFixed(3);
+      document.querySelector('#cost').textContent=logLoss().toFixed(3);
+    }
+    function descend(){
+      const alpha=Number(document.querySelector('#alpha').value);
+      if(!Number.isFinite(alpha)||alpha<=0)return;
+      const [gradientW,gradientB]=data.reduce(([dw,db],[x,y])=>{const error=sigmoid(weight*x+bias)-y;return [dw+error*x,db+error]},[0,0]);
+      weight-=alpha*gradientW/data.length;
+      bias-=alpha*gradientB/data.length;
+      step+=1;
+      render();
+    }
+    document.querySelector('#one-step').addEventListener('click',descend);
+    document.querySelector('#ten-steps').addEventListener('click',()=>{for(let index=0;index<10;index+=1)descend()});
+    document.querySelector('#reset').addEventListener('click',()=>{weight=Number(document.querySelector('#starting-w').value)||0;bias=Number(document.querySelector('#starting-b').value)||0;step=0;render()});
+    drawAxes();
+    document.querySelector('#reset').click();
+  </script>
+</body>
+</html>
