@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Student lesson on regularisation, overfitting, regularised cost functions, and model complexity.">
+  <title>Block 1: Regularisation</title>
+  <style>body{font-family:sans-serif;max-width:900px;margin:0 auto;padding:16px;line-height:1.6}blockquote{border-left:4px solid #2563eb;background:#eff6ff;margin:16px 0;padding:12px 16px}hr{margin:28px 0}nav ol{columns:2;column-gap:2em}section>h3{font-size:1.1rem}.equation{font-size:1.2rem;text-align:center;margin:1.2rem 0}.callout{border-left:4px solid #2563eb;background:#eff6ff;margin:16px 0;padding:12px 16px}details{margin:16px 0;padding:12px 16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px}summary{cursor:pointer;font-weight:600;color:#1d4ed8}.video-card{background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:20px;margin:20px 0}.video-card h3{margin:0 0 10px;color:#0f172a;font-size:1.05rem}.video-card p{font-size:.9rem;color:#64748b;margin:0 0 16px}.video-frame{position:relative;width:100%;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:6px;background:#0f172a}.video-frame iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:0}</style>
+</head>
+<body>
+  <main>
+    <h1>Regularisation</h1>
+    <p>Machine-learning models should not only perform well on the data used to train them; they should also make good predictions on <strong>new, unseen data</strong>. A model that learns the training data too closely may suffer from <strong>overfitting</strong>: it performs very well on training examples but poorly on new examples.</p>
+    <p>Regularisation is one of the most common techniques for reducing overfitting.</p>
+    <nav aria-label="Table of contents"><strong>Table of Contents</strong>
+      <ol>
+        <li><a href="#overfitting">From Overfitting to Regularisation</a></li>
+        <li><a href="#penalty">Penalising Large Parameters</a></li>
+        <li><a href="#cost-function">The Regularised Cost Function</a></li>
+        <li><a href="#lambda">What Does Lambda Do?</a></li>
+        <li><a href="#demo">Interactive Regularisation Demo</a></li>
+        <li><a href="#intercept">Why Is b Usually Not Regularised?</a></li>
+        <li><a href="#linear-regression">Regularised Linear Regression</a></li>
+        <li><a href="#logistic-regression">Regularised Logistic Regression</a></li>
+        <li><a href="#trade-off">Smaller Is Not Always Better</a></li>
+        <li><a href="#feature-selection">Regularisation and Feature Selection</a></li>
+        <li><a href="#example">A Small Conceptual Example</a></li>
+        <li><a href="#summary">What You Should Remember</a></li>
+      </ol>
+    </nav>
+
+    <section id="overfitting">
+      <h2>1. From Overfitting to Regularisation</h2>
+      <p>Consider a regression problem in which we want to predict a house price. A simple model might use only its size:</p>
+      <p class="equation">\(f(x) = w_1x + b\)</p>
+      <p>A more flexible model could introduce polynomial features:</p>
+      <p class="equation">\(f(x) = w_1x + w_2x^2 + w_3x^3 + w_4x^4 + b\)</p>
+      <p>Adding features makes a model more flexible. This is useful when the relationship is complicated, but an excessively flexible model may adapt to individual training examples rather than capturing the general pattern. The result can be an irregular curve that fits training data extremely well but does not generalise well.</p>
+      <p>There are several ways to deal with this problem. For a visual introduction, see the accompanying video, <em>addressing overfitting</em>.</p>
+      <h3>More Training Data</h3>
+      <p>If possible, we can collect <strong>more examples</strong>. With more observations, it becomes harder for a complicated model to adapt to accidental patterns in a small training set. In practice, obtaining additional data may be expensive or impossible.</p>
+      <h3>Fewer Features</h3>
+      <p>Another possibility is to reduce the number of features. A house-price model could include size, bedrooms, floors, age, neighbourhood income, distance from public transport, distance from shops, and many other characteristics. If many features are available but observations are limited, the model may overfit.</p>
+      <p>Choosing only the most useful features is called <strong>feature selection</strong>. Its disadvantage is that removing features also removes information that may be useful for prediction.</p>
+      <h3>Regularisation</h3>
+      <p>Regularisation provides another approach. Instead of removing features completely, it keeps them while <strong>discouraging them from having excessively large influence</strong>.</p>
+      <blockquote><strong>Regularisation encourages a model to use smaller parameter values, usually producing a simpler model that is less likely to overfit.</strong></blockquote>
+      <div class="video-card">
+        <h3>Video 1: Addressing Overfitting</h3>
+        <p>Explore collecting more data, selecting fewer features, and using regularisation.</p>
+        <div class="video-frame"><iframe title="Addressing Overfitting" src="https://www.youtube.com/embed/1kgcON0Eauc" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen="allowfullscreen" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>
+      </div>
+    </section>
+    <hr>
+
+    <section id="penalty">
+      <h2>2. Penalising Large Parameters</h2>
+      <p>Consider again the polynomial model:</p>
+      <p class="equation">\(f(x) = w_1x + w_2x^2 + w_3x^3 + w_4x^4 + b\)</p>
+      <p>Suppose the \(x^3\) and \(x^4\) terms make the model unnecessarily complicated. Removing those features is equivalent to setting \(w_3 = 0\) and \(w_4 = 0\).</p>
+      <p>Regularisation takes a softer approach. Rather than forcing these parameters to zero, it encourages them to be small. If the original cost function is \(J(w,b)\), we could modify it to include:</p>
+      <p class="equation">\(J(w,b) + 1000w_3^2 + 1000w_4^2\)</p>
+      <p>If \(w_3\) or \(w_4\) becomes large, the added terms become large too. Because the learning algorithm minimises the cost function, it has an incentive to keep these parameters small. The corresponding features remain present, but their effect becomes weaker.</p>
+      <p>Usually we do not know beforehand which parameters should be small, so we normally penalise <strong>all weights</strong> \(w_1, \ldots, w_n\).</p>
+    </section>
+    <hr>
+
+    <section id="cost-function">
+      <h2>3. The Regularised Cost Function</h2>
+      <p>For linear regression, the ordinary squared-error cost is:</p>
+      <p class="equation">\(J(w,b) = \frac{1}{2m}\sum_{i=1}^{m}(f_{w,b}(x^{(i)}) - y^{(i)})^2\)</p>
+      <p>With regularisation, we add another term:</p>
+      <p class="equation">\(J(w,b) = \frac{1}{2m}\sum_{i=1}^{m}(f_{w,b}(x^{(i)}) - y^{(i)})^2 + \frac{\lambda}{2m}\sum_{j=1}^{n}w_j^2\)</p>
+      <p>The second part, \(\frac{\lambda}{2m}\sum_{j=1}^{n}w_j^2\), is the <strong>regularisation term</strong>. The symbol \(\lambda\), pronounced <em>lambda</em>, is the <strong>regularisation parameter</strong>.</p>
+      <p>The new cost function has two objectives:</p>
+      <ol><li><strong>Fit the training data well</strong> by keeping prediction errors small.</li><li><strong>Keep the model relatively simple</strong> by preventing weights from becoming unnecessarily large.</li></ol>
+      <p>The role of \(\lambda\) is to determine how strongly we care about the second objective. This construction is developed visually in the accompanying video on the <em>regularised cost function</em>.</p>
+      <div class="video-card">
+        <h3>Video 2: The Regularised Cost Function</h3>
+        <p>See how a penalty term is added to the cost function and how \(\lambda\) controls it.</p>
+        <div class="video-frame"><iframe title="The Regularised Cost Function" src="https://www.youtube.com/embed/NIiZZY7nlfU" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen="allowfullscreen" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>
+      </div>
+    </section>
+    <hr>
+
+    <section id="lambda">
+      <h2>4. What Does Lambda Do?</h2>
+      <p>The value of \(\lambda\) controls the strength of regularisation.</p>
+      <h3>If \(\lambda = 0\)</h3>
+      <p>When \(\lambda = 0\), the regularisation term disappears. We are back to the original learning algorithm, and a highly flexible model may overfit.</p>
+      <h3>If \(\lambda\) Is Very Large</h3>
+      <p>If \(\lambda\) is extremely large, the algorithm strongly penalises weights that differ from zero. It will try to make nearly all weights small:</p>
+      <p class="equation">\(w_1 \approx w_2 \approx \cdots \approx w_n \approx 0\)</p>
+      <p>For linear regression, \(f(x) = w_1x_1 + \cdots + w_nx_n + b\), the prediction becomes approximately \(f(x) \approx b\). The model may become too simple and <strong>underfit</strong> the data.</p>
+      <h3>Choosing a Useful Value</h3>
+      <p>We want neither extreme: too little regularisation can lead to overfitting, while too much can lead to underfitting. A suitable value of \(\lambda\) balances fitting training data with keeping the model simple. Choosing hyperparameters such as \(\lambda\) systematically is part of <strong>model selection</strong>.</p>
+    </section>
+    <hr>
+
+    <section id="demo">
+      <h2>5. Interactive Regularisation Demo</h2>
+      <p>Use this visualiser to fit polynomial Ridge models to the same Ames Housing sample used in the linear-regression gradient-descent demo. Increase the polynomial degree to add flexibility, then vary \(\lambda\) to see how regularisation changes the curve and shrinks the weights.</p>
+      <p>The visualiser is published on <a href="https://natasasdj.github.io/teaching/Regularization/" target="_blank" rel="noopener noreferrer">GitHub Pages</a> in the <code>teaching/Regularization</code> folder.</p>
+      <div style="border:1px solid #e2e8f0;border-radius:8px;padding:20px;margin:20px 0;background:#fff;">
+        <iframe src="https://natasasdj.github.io/teaching/Regularization/" title="Regularisation Visualizer" style="display:block;width:100%;height:610px;border:1px solid #cbd5e1;border-radius:6px;" loading="lazy"></iframe>
+        <p style="margin:14px 0 0;"><a href="https://natasasdj.github.io/teaching/Regularization/" target="_blank" rel="noopener" style="color:#2563eb;font-weight:600;">Open the visualiser in a new tab</a></p>
+      </div>
+    </section>
+    <hr>
+
+    <section id="intercept">
+      <h2>6. Why Is b Usually Not Regularised?</h2>
+      <p>The regularisation term contains \(w_1, w_2, \ldots, w_n\), but not the intercept \(b\):</p>
+      <p class="equation">\(\frac{\lambda}{2m}\sum_{j=1}^{n}w_j^2\)</p>
+      <p>It is normally used instead of \(\frac{\lambda}{2m}(\sum_{j=1}^{n}w_j^2 + b^2)\). This is mainly a convention; regularising \(b\) usually makes little practical difference.</p>
+      <blockquote>We normally regularise the weights \(w_j\), but not the intercept \(b\).</blockquote>
+    </section>
+    <hr>
+
+    <section id="linear-regression">
+      <h2>7. Regularised Linear Regression</h2>
+      <p>Regularisation can be incorporated directly into gradient descent. Recall the ordinary update:</p>
+      <p class="equation">\(w_j := w_j - \alpha\frac{\partial J}{\partial w_j}\)</p>
+      <p>For regularised linear regression, the derivative with respect to \(w_j\) becomes:</p>
+      <p class="equation">\(\frac{\partial J}{\partial w_j} = \frac{1}{m}\sum_{i=1}^{m}(f_{w,b}(x^{(i)}) - y^{(i)})x_j^{(i)} + \frac{\lambda}{m}w_j\)</p>
+      <p>Therefore:</p>
+      <p class="equation">\(w_j := w_j - \alpha[\frac{1}{m}\sum_{i=1}^{m}(f_{w,b}(x^{(i)}) - y^{(i)})x_j^{(i)} + \frac{\lambda}{m}w_j]\)</p>
+      <p>Because \(b\) is not regularised, its update remains unchanged. The important point is that regularisation adds a term proportional to \(w_j\), encouraging weights to become smaller. The accompanying video on <em>regularised linear regression</em> shows this modification in gradient descent.</p>
+      <div class="video-card">
+        <h3>Video 3: Regularised Linear Regression</h3>
+        <p>See how regularisation modifies gradient descent for linear regression.</p>
+        <div class="video-frame"><iframe title="Regularised Linear Regression" src="https://www.youtube.com/embed/jhrrw8Iuus0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen="allowfullscreen" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>
+      </div>
+      <details><summary>Optional: Weight Decay Interpretation</summary><p>The update can be rearranged approximately as:</p><p class="equation">\(w_j := (1 - \alpha\frac{\lambda}{m})w_j - \alpha(\text{ordinary gradient})\)</p><p>Normally, \(0 < 1 - \alpha\frac{\lambda}{m} < 1\). At each iteration, the current weight is multiplied by a number slightly smaller than one, so weights are gradually <strong>shrunk</strong>. This is also called <strong>weight decay</strong>.</p></details>
+    </section>
+    <hr>
+
+    <section id="logistic-regression">
+      <h2>8. Regularised Logistic Regression</h2>
+      <p>Regularisation is not limited to linear regression. Logistic regression uses \(f_{w,b}(x) = \sigma(w \cdot x + b)\), where:</p>
+      <p class="equation">\(\sigma(z) = \frac{1}{1 + e^{-z}}\)</p>
+      <p>A logistic-regression model can overfit, particularly when there are many features or high-order polynomial features. In two-dimensional classification, this may appear as an unnecessarily complicated decision boundary that twists around individual training examples.</p>
+      <p>To regularise logistic regression, we add the same regularisation term, \(\frac{\lambda}{2m}\sum_{j=1}^{n}w_j^2\), to its usual cost function. This discourages excessively large weights. The gradient becomes:</p>
+      <p class="equation">\(\frac{\partial J}{\partial w_j} = \frac{1}{m}\sum_{i=1}^{m}(f_{w,b}(x^{(i)}) - y^{(i)})x_j^{(i)} + \frac{\lambda}{m}w_j\)</p>
+      <p>The expressions for regularised linear and logistic regression look almost identical. The important difference is the definition of \(f_{w,b}(x)\): linear regression uses a linear function, while logistic regression applies the sigmoid function. The accompanying video on <em>regularised logistic regression</em> demonstrates this connection.</p>
+      <div class="video-card">
+        <h3>Video 4: Regularised Logistic Regression</h3>
+        <p>See how regularisation can prevent overly complex logistic-regression decision boundaries.</p>
+        <div class="video-frame"><iframe title="Regularised Logistic Regression" src="https://www.youtube.com/embed/NhZXRzH2y-E" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen="allowfullscreen" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>
+      </div>
+      <div class="callout"><strong>Practice in Colab:</strong> Compare regularised polynomial Ridge regression on Ames Housing with L2-regularised logistic regression on the Wisconsin Breast Cancer dataset. The <code>05_regularization_lab.ipynb</code> notebook is available in the GitHub <code>teaching/Regularization</code> folder: <a href="https://github.com/natasasdj/teaching/blob/main/Regularization/05_regularization_lab.ipynb" target="_blank" rel="noopener noreferrer">view it on GitHub</a> or <a href="https://colab.research.google.com/github/natasasdj/teaching/blob/main/Regularization/05_regularization_lab.ipynb" target="_blank" rel="noopener noreferrer">open it in Google Colab</a>.</div>
+    </section>
+    <hr>
+
+    <section id="trade-off">
+      <h2>9. Regularisation Does Not Simply Mean Smaller Is Always Better</h2>
+      <p>Because regularisation makes weights smaller, it may be tempting to always use very strong regularisation. This is incorrect. The objective is not to make weights as small as possible; it is to build a model that generalises well.</p>
+      <p>Regularisation creates a trade-off: fit the data versus keep the model reasonably simple. Too little may leave an overly complicated model, while too much may prevent the model from learning important relationships.</p>
+      <div class="callout"><strong>Broader principle:</strong> increasing model complexity can improve the fit to training data, but excessive complexity may reduce performance on unseen data.</div>
+    </section>
+    <hr>
+
+    <section id="feature-selection">
+      <h2>10. Regularisation and Feature Selection</h2>
+      <p>Regularisation and feature selection are related but should not be confused. If a model has the feature \(x_j\), <strong>feature selection</strong> might remove \(x_j\) completely, effectively forcing \(w_j = 0\).</p>
+      <p>The regularisation introduced here instead encourages \(w_j\) to be small. It retains information from many features while limiting how strongly individual features influence the model. This is useful when many features may be relevant and we do not know in advance which should be removed.</p>
+    </section>
+    <hr>
+
+    <section id="example">
+      <h2>11. A Small Conceptual Example</h2>
+      <p>Imagine predicting student performance using 50 variables with a dataset of only 120 students. A sufficiently flexible model might discover accidental relationships such as:</p>
+      <ul><li>a particular room number being associated with higher grades;</li><li>a particular day of data collection appearing unusually important;</li><li>one uncommon combination of attributes strongly influencing the prediction.</li></ul>
+      <p>These patterns may occur in the training data but have little value for future students. Regularisation discourages the model from assigning extremely large weights to such relationships unless the data provides strong evidence that they are useful. The result is often a more stable model that performs better on new observations.</p>
+    </section>
+    <hr>
+
+    <section id="summary">
+      <h2>12. What You Should Remember</h2>
+      <ul><li>Complex models are more susceptible to <strong>overfitting</strong>, especially when training data is limited.</li><li>Responses to overfitting include collecting more data, selecting fewer features, and regularisation.</li><li>Regularisation keeps available features but discourages excessively large parameters.</li><li>It adds \(\frac{\lambda}{2m}\sum_{j=1}^{n}w_j^2\) to the original cost function.</li><li>\(\lambda\) controls the strength of regularisation.</li><li>A very small \(\lambda\) provides little protection from overfitting; a very large \(\lambda\) can cause underfitting.</li><li>We normally regularise \(w_1, \ldots, w_n\), but not \(b\).</li><li>The same idea applies to linear and logistic regression.</li></ul>
+      <blockquote><strong>Regularisation asks the learning algorithm not only to fit the training data, but also to prefer solutions that do not rely on unnecessarily large parameter values.</strong><br><br>This usually produces a simpler, smoother model that is less sensitive to peculiarities of training data and has a better chance of generalising to unseen examples.</blockquote>
+      <details><summary>Optional Material</summary><p>For this introductory course, the following topics can be treated as optional:</p><ul><li>deriving the gradient of the regularised cost function;</li><li>algebraically deriving the weight-decay interpretation;</li><li>implementation details of regularised gradient descent;</li><li>systematic procedures for selecting \(\lambda\);</li><li>mathematical explanations of why smaller parameters correspond to simpler functions.</li></ul><p>Students should primarily understand why regularisation is used, what \(\lambda\) controls, and how regularisation affects overfitting and underfitting.</p></details>
+    </section>
+  </main>
+</body>
+</html>
